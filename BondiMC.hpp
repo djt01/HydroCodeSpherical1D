@@ -163,10 +163,10 @@
                                                                                \
   /* loop over packets stored in previous timestep */                          \
   for(int j=0;j<nbanki;j++){                                                   \
-    taurem=P_store[j].taurem_current;                                          \
-    cell=P_store[j].cellloc_current;                                           \
-    rcurrent=P_store[j].rcurrent_current;                                      \
-    lrem=cl*dt;                                                                \
+    taurem=P_store[j]._taurem_current;                                         \
+    cell=P_store[j]._cellloc_current;                                          \
+    rcurrent=P_store[j]._rcurrent_current;                                     \
+    lrem=cl*cells[1]._dt;                                                      \
     if(cell>ncell){continue;}                                                  \
     if(rcurrent==0.0 && taurem==0.0){continue;}                                \
     if(rcurrent!=0.0){                                                         \
@@ -177,7 +177,7 @@
                                                                                \
   /*loop over photons emitted from source in this timestep*/                   \
   for(int j=0;j<nphoton;j++){                                                  \
-    taurem=-log(((double) rand()/RAND_MAX));cell=0;lrem=cl*dt;                 \
+    taurem=-log(((double) rand()/RAND_MAX));cell=0;lrem=cl*cells[1]._dt;       \
     while(taurem>0.0 && lrem >0.0){                                            \
       if (cell>ncell) {break;}                                                 \
         PROPAGATE(taurem,cell,lrem,nbank);}                                    \
@@ -205,16 +205,16 @@
   /* shift packets stored this step to first three columns of bank to          \
    * be read from next step */                                                 \
   for(int j=0;j<nbanki;j++){                                                   \
-    P_store[j].taurem_current=P_store[j].taurem_next;                          \
-    P_store[j].cellloc_current=P_store[j].cellloc_next;                        \
-    P_store[j].rcurrent_current=P_store[j].rcurrent_next;                      \
-    P_store[j].taurem_next=0.0;                                                \
-    P_store[j].rcurrent_next=0.0;                                              \
-    P_store[j].cellloc_next=0;}			                               \
+    P_store[j]._taurem_current=P_store[j]._taurem_next;                        \
+    P_store[j]._cellloc_current=P_store[j]._cellloc_next;                      \
+    P_store[j]._rcurrent_current=P_store[j]._rcurrent_next;                    \
+    P_store[j]._taurem_next=0.0;                                               \
+    P_store[j]._rcurrent_next=0.0;                                             \
+    P_store[j]._cellloc_next=0;}			                       \
                                                                                \
   /* calculate rion */                                                         \
   for (int k=1;k<ncell+1;k++){                                                 \
-    if (cells[k].nfac==1.0){                                                  \
+    if (cells[k].nfac==1.0){                                                   \
       rion=cell[k]._lowlim;                                                    \
       break;                                                                   \
       if (k>ncell){rion=rmax}}                                                 \
@@ -620,9 +620,9 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
  */
 
 void BANK(int& cell, double& taurem, double& radius, int& stored){
-  P_store[stored].cellloc_next=cell;
-  P_store[stored].rcurrent_next=radius;
-  P_store[stored].taurem_next=taurem;
+  P_store[stored]._cellloc_next=cell;
+  P_store[stored]._rcurrent_next=radius;
+  P_store[stored]._taurem_next=taurem;
   stored++;
   }
 
@@ -722,7 +722,7 @@ void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
 
 void UPDATE_ION(int& cell){
   double ImR=
-              dt*((cells[cell].rho/1.67E-21*cells[cell].nfac*
+              cells[1]._dt*((cells[cell].rho/1.67E-21*cells[cell].nfac*
               cells[cell].jmean)-((pow(cells[cell].ions,2))*alphaB));
   double frac;
   if (cells[cell].equil==0){
