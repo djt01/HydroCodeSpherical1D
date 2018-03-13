@@ -27,6 +27,7 @@
 #define BONDIMC_HPP
 
 #include "Cell.hpp"           // Cell classe
+#include "Bank.hpp"           // Store class
 #include "LambertW.hpp"       // Lambert W function implementation
 #include "SafeParameters.hpp" // Safe way to include Parameters.hpp
 
@@ -156,16 +157,16 @@
   double lrem;                                                                 \
   int nphoton=100;                                                             \
   int nbank;                                                                   \
-  int nbanki;                                                                  \
+  int nbanki=nbank;                                                                  \
   int cell;                                                                    \
   for(int k=1;k<ncell+1;k++){	                                               \
     cells[k].jmean=0.0; cells[k].length=0.0;}                                  \
                                                                                \
   /* loop over packets stored in previous timestep */                          \
   for(int j=0;j<nbanki;j++){                                                   \
-    taurem=P_store[j]._taurem_current;                                         \
-    cell=P_store[j]._cellloc_current;                                          \
-    rcurrent=P_store[j]._rcurrent_current;                                     \
+    taurem=P_Store[j]._currentTaurem;                                         \
+    cell=P_Store[j]._currentCell;                                          \
+    rcurrent=P_Store[j]._currentDistance;                                     \
     lrem=cl*cells[1]._dt;                                                      \
     if(cell>ncell){continue;}                                                  \
     if(rcurrent==0.0 && taurem==0.0){continue;}                                \
@@ -187,7 +188,8 @@
    * travelled through cell*/                                                  \
   for(int k=1;k<ncell+1;k++){                                                  \
     cells[k].jmean=                                                            \
-       (Cion*cells[k].sigma*cells[k].length)/(nphoton*cells[k].vcell);}        \
+       (Cion*cells[k].sigma*cells[k].length)/                                  \
+       (nphoton*4.0*pi*pow(cells[k]._lowlim,2)*cells[k]._V;);}                 \
                                                                                \
   /*update neutral fraction in each cell*/	                               \
   for(int k=1;k<ncell+1;k++){                                                  \
@@ -205,12 +207,12 @@
   /* shift packets stored this step to first three columns of bank to          \
    * be read from next step */                                                 \
   for(int j=0;j<nbanki;j++){                                                   \
-    P_store[j]._taurem_current=P_store[j]._taurem_next;                        \
-    P_store[j]._cellloc_current=P_store[j]._cellloc_next;                      \
-    P_store[j]._rcurrent_current=P_store[j]._rcurrent_next;                    \
-    P_store[j]._taurem_next=0.0;                                               \
-    P_store[j]._rcurrent_next=0.0;                                             \
-    P_store[j]._cellloc_next=0;}			                       \
+    P_Store[j]._currentTaurem=P_Store[j]._futureTaurem;                        \
+    P_Store[j]._currentCell=P_Store[j]._futureCell;                      \
+    P_Store[j]._currentDistance=P_Store[j]._futureDistance;                    \
+    P_Store[j]._futureTaurem=0.0;                                               \
+    P_Store[j]._futureDistance=0.0;                                             \
+    P_Store[j]._futureCell=0;}			                       \
                                                                                \
   /* calculate rion */                                                         \
   for (int k=1;k<ncell+1;k++){                                                 \
@@ -234,6 +236,8 @@
     bondi_rfile.flush();                                                       \
     rion_old = rion;                                                           \
   }
+
+//-------------------------------------------------------------------------------------
 #elif IONISATION_MODE == IONISATION_MODE_CONSTANT
 #define get_ionisation_radius() const double rion = INITIAL_IONISATION_RADIUS;
 #endif
@@ -620,9 +624,9 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
  */
 
 void BANK(int& cell, double& taurem, double& radius, int& stored){
-  P_store[stored]._cellloc_next=cell;
-  P_store[stored]._rcurrent_next=radius;
-  P_store[stored]._taurem_next=taurem;
+  P_Store[stored]._futureCell=cell;
+  P_Store[stored]._futureDistance=radius;
+  P_Store[stored]._futureTaurem=taurem;
   stored++;
   }
 
@@ -722,8 +726,8 @@ void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
 
 void UPDATE_ION(int& cell){
   double ImR=
-              cells[1]._dt*((cells[cell].rho/1.67E-21*cells[cell].nfac*
-              cells[cell].jmean)-((pow(cells[cell].ions,2))*alphaB));
+              cells[1]._dt*(((cells[cell].rho/1.67E-21)*cells[cell].nfac*
+              cells[cell].jmean)-((std::pow(cells[cell].ions,2))*alphaB));
   double frac;
   if (cells[cell].equil==0){
     if (ImR>(cells[cell].rho/1.67E-21*cells[cell].nfac)){
@@ -733,23 +737,24 @@ void UPDATE_ION(int& cell){
       else{
         frac=cells[cell].jmean/(alphaB*cells[cell].rho/1.67E-21);
         cells[cell].nfac=
-              (1.0+(frac/2.0))-(sqrt((1.0/4.0)*(frac)*(4.0+frac)));
+              (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
         cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.67E-21;
         cells[cell].equil=1;}
     }
     else{
       cells[cell].ions=cells[cell].ions+ImR;
-      cells[cell].nfac=1.0-cells[cell].ions/cells[cell].rho/1.67E-21;}
+      cells[cell].nfac=1.0-(cells[cell].ions/(cells[cell].rho/1.67E-21));}
     }
   else{
     /*if(ImR<(cells[cell].rho/1.67E-21*cells[cell].nfac)){
       cells[cell].ions=cells[cell].ions+ImR;
-      cells[cell].nfac=1.0-cells[cell].ions/cells[cell].rho/1.67E-21;
+      cells[cell].nfac=1.0-(cells[cell].ions/(cells[cell].rho/1.67E-21));
       cells[cell].equil=0;}
     else{ */				
-      frac=cells[cell].jmean/(alphaB*cells[cell].rho/1.67E-21);
-      cells[cell].nfac=(1.0+(frac/2.0))-(sqrt((1.0/4.0)*(frac)*(4.0+frac)));
-      cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.67E-21;}
+      frac=cells[cell].jmean/(alphaB*(cells[cell].rho/1.67E-21));
+      cells[cell].nfac=
+              (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
+      cells[cell].ions=(1.0-cells[cell].nfac)*(cells[cell].rho/1.67E-21);}
 /*  } */
 }
 
