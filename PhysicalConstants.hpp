@@ -44,4 +44,7 @@
 /*! @brief Astronomical unit (in m). */
 #define AU_IN_SI 1.496e11
 
+/*! @brief Speed of Light (in m s^-1). */
+#define SPEED_OF_LIGHT_IN_SI 2.99792e8
+
 #endif // PHYSICALCONSTANTS_HPP

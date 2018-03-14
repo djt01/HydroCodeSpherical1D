@@ -94,6 +94,9 @@ public:
   /*! @brief Number of ions in cell. */
   double _ions;
 
+  /*! @brief Recombination coefficient to n = 2 level (in L^3 T^-1). */
+  double _alphaB;
+
   // time step
 
   /*! @brief Integer time step (in integer time units). */

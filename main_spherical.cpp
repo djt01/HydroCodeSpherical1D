@@ -399,6 +399,9 @@ int main(int argc, char **argv) {
     cells[i]._uplim = RMIN + i * CELLSIZE;
     cells[i]._V = CELLSIZE;
     cells[i]._integer_dt = 0;
+    cells[i]._sigma = 3.0e-14;
+    cells[i]._alphaB = 3.0e-19;
+    cells[i]._equil = 0;
     // initialize the time step to a sensible value: the requested snapshot time
     // interval
     cells[i]._dt = (MAXTIME / NUMBER_OF_SNAPS);

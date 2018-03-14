@@ -167,7 +167,7 @@
     taurem=P_Store[j]._currentTaurem;                                          \
     cell=P_Store[j]._currentCell;                                              \
     rcurrent=P_Store[j]._currentDistance;                                      \
-    lrem=cl*cells[1]._dt;                                                      \
+    lrem=SPEED_OF_LIGHT_IN_SI*100*cells[1]._dt;                                \
     if(cell>ncell){continue;}                                                  \
     if(rcurrent==0.0 && taurem==0.0){continue;}                                \
     if(rcurrent!=0.0){                                                         \
@@ -178,7 +178,9 @@
                                                                                \
   /*loop over photons emitted from source in this timestep*/                   \
   for(int j=0;j<nphoton;j++){                                                  \
-    taurem=-log(((double) rand()/RAND_MAX));cell=0;lrem=cl*cells[1]._dt;       \
+    taurem=-log(((double) rand()/RAND_MAX));                                   \
+    cell=0;                                                                    \
+    lrem=SPEED_OF_LIGHT_IN_SI*100*cells[1]._dt;                                \
     while(taurem>0.0 && lrem >0.0){                                            \
       if (cell>ncell) {break;}                                                 \
         PROPAGATE(taurem,cell,lrem,nbank);}                                    \
@@ -189,7 +191,7 @@
   for(int k=1;k<ncell+1;k++){                                                  \
     cells[k].jmean=                                                            \
        (Cion*cells[k].sigma*cells[k].length)/                                  \
-       (nphoton*4.0*pi*pow(cells[k]._lowlim,2)*cells[k]._V;);}                 \
+       (nphoton*4.0*M_PI*pow(cells[k]._lowlim,2)*cells[k]._V;);}               \
                                                                                \
   /*update neutral fraction in each cell*/	                               \
   for(int k=1;k<ncell+1;k++){                                                  \
@@ -647,7 +649,7 @@ void ICT( int& cell, double& taurem, double& rcurrent, double& lrem,
          int& stored){
   double taucell=
               cells[cell].sigma*(cells[cell]._V*100.-rcurrent)*
-              cells[cell].rho/1.67E-21*cells[cell].nfac;
+              cells[cell].rho/1.674E-21*cells[cell].nfac;
   if (taurem>taucell && lrem>(cells[cell]._V*100.-rcurrent)){
     cells[cell].length+=(cells[cell]._V*100.-rcurrent);
     taurem-=taucell;
@@ -656,14 +658,14 @@ void ICT( int& cell, double& taurem, double& rcurrent, double& lrem,
     rcurrent=0.0;}
   else {
     double taulength=
-              taurem/(cells[cell].rho/1.67E-21*cells[cell].nfac*
+              taurem/(cells[cell].rho/1.674E-21*cells[cell].nfac*
               cells[cell].sigma);
     if (taulength<=lrem){
     cells[cell].length+=taulength;
     taurem=0.0;}
     else{
       cells[cell].length+=lrem;
-      taurem-=(cells[cell].rho/1.67E-21*cells[cell].nfac*
+      taurem-=(cells[cell].rho/1.674E-21*cells[cell].nfac*
                cells[cell].sigma*lrem);
       rcurrent+=lrem;
       if (stored<=sizebank){BANK(cell,taurem,rcurrent,stored);}
@@ -688,7 +690,7 @@ void ICT( int& cell, double& taurem, double& rcurrent, double& lrem,
 void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
   double taucell=
               cells[cell].sigma*cells[cell]._V*100.*
-              cells[cell].rho/1.67E-21*cells[cell].nfac;
+              cells[cell].rho/1.674E-21*cells[cell].nfac;
   if (taurem>taucell && lrem>cells[cell]._V*100.){
     cells[cell].length+=cells[cell]._V*100.;
     taurem-=taucell;
@@ -703,7 +705,7 @@ void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
     taurem=0.0;}
     else{
       cells[cell].length+=lrem;
-      taurem-=(cells[cell].rho/1.67E-21*cells[cell].nfac*
+      taurem-=(cells[cell].rho/1.674E-21*cells[cell].nfac*
                cells[cell].sigma*lrem);
       if (stored<=sizebank){BANK(cell,taurem,lrem,stored);}
       else{stored++;}
@@ -726,19 +728,22 @@ void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
 
 void UPDATE_ION(int& cell){
   double ImR=
-              cells[1]._dt*(((cells[cell].rho/1.67E-21)*cells[cell].nfac*
-              cells[cell].jmean)-((std::pow(cells[cell].ions,2))*alphaB));
+              cells[1]._dt*(((cells[cell].rho/1.674E-21)*cells[cell].nfac*
+              cells[cell].jmean)-((std::pow(cells[cell].ions,2))*
+              cells[cell]._alphaB));
   double frac;
   if (cells[cell].equil==0){
-    if (ImR>(cells[cell].rho/1.67E-21*cells[cell].nfac)){
+    if (ImR>(cells[cell].rho/1.674E-21*cells[cell].nfac)){
       if (cells[cell].nfac==1.0){
         cells[cell].nfac=1.0E-8;
-        cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.67E-21;}
+        cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.674E-21;}
       else{
-        frac=cells[cell].jmean/(alphaB*cells[cell].rho/1.67E-21);
+        frac=
+               cells[cell].jmean/(cells[cell]._alphaB*
+               cells[cell].rho/1.674E-21);
         cells[cell].nfac=
               (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
-        cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.67E-21;
+        cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.674E-21;
         cells[cell].equil=1;}
     }
     else{
@@ -751,7 +756,9 @@ void UPDATE_ION(int& cell){
       cells[cell].nfac=1.0-(cells[cell].ions/(cells[cell].rho/1.67E-21));
       cells[cell].equil=0;}
     else{ */				
-      frac=cells[cell].jmean/(alphaB*(cells[cell].rho/1.67E-21));
+      frac=
+               cells[cell].jmean/(cells[cell]._alphaB*
+               (cells[cell].rho/1.674E-21));
       cells[cell].nfac=
               (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
       cells[cell].ions=(1.0-cells[cell].nfac)*(cells[cell].rho/1.67E-21);}
