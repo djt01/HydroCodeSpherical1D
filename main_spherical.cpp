@@ -26,8 +26,10 @@
 
 // project includes
 #include "Bondi.hpp"             // for EOS_BONDI, BOUNDARIES_BONDI, IC_BONDI
+#include "BondiMC.hpp"		 // for EOS_BONDI, BOUNDARIES_BONDI, IC_BONDI with MC photoionisation
 #include "Boundaries.hpp"        // for non Bondi boundary conditions
 #include "Cell.hpp"              // Cell class
+#include "Bank.hpp"              // Bank class
 #include "EOS.hpp"               // for non Bondi equations of state
 #include "HLLCRiemannSolver.hpp" // fast HLLC Riemann solver
 #include "IC.hpp"                // general initial condition interface
@@ -403,6 +405,18 @@ int main(int argc, char **argv) {
     // only actual cells have an index in the range [0, ncell[. The two ghost
     // cells are excluded by the bit of conditional magic below.
     cells[i]._index = (i != 0 && i != ncell + 2) ? (i - 1) : ncell + 2;
+  }
+
+  // create storage bank for Monte Carlo photon packets in ionisation steps
+  Bank *P_Store = new Bank[10000000]
+  #pragma omp parallel for
+  for (uint_fast32_t i = 0; i < 10000000; ++i) {
+    P_Store[i]._currentCell = 0;
+    P_Store[i]._currentTaurem = 0.;
+    P_Store[i]._currentDistance = 0.;
+    P_Store[i]._futureCell = 0;
+    P_Store[i]._futureTaurem = 0.;
+    P_Store[i]._futureDistance = 0.;
   }
 
   // set up the initial condition
@@ -801,6 +815,8 @@ int main(int argc, char **argv) {
 
   // clean up: free cell memory
   delete[] cells;
+
+  delete[] P_Store;
 
   // stop timing the program and display run time information
   total_time.stop();

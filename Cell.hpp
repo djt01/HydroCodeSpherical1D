@@ -82,6 +82,17 @@ public:
 
   /*! @brief Neutral fraction. */
   double _nfac;
+  /*! @brief Absorbtion cross section (in internal units of L^-2). */
+  double _sigma;
+  /*! @brief Mean intensity indicator (for MC) (in internal units of T^-1). */
+  double _jmean;
+  /*! @brief Path length indicator (in internal units of L). */
+  double length;
+  /*! @brief Flag to indicate ioniasation equilibrium state
+   *  (0 = out of equilibrium, 1 = in equilibrium). */
+  double _equil;
+  /*! @brief Number of ions in cell. */
+  double _ions;
 
   // time step
 

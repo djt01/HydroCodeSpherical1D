@@ -147,7 +147,7 @@
  */
 #if IONISATION_MODE == IONISATION_MODE_SELF_CONSISTENT
 //--------------------------------------------------------------------------------------------------------------------------------
-#define get_ionisation_radius()                                                \
+#define get_ionisation_radius_MC()                                             \
   const double rmin=cells[1]._lowlim;                                          \
   const double rmax=cells[ncell+1]._uplim;                                     \
   double Cion =                                                                \
@@ -157,16 +157,16 @@
   double lrem;                                                                 \
   int nphoton=100;                                                             \
   int nbank;                                                                   \
-  int nbanki=nbank;                                                                  \
+  int nbanki=nbank;                                                            \
   int cell;                                                                    \
   for(int k=1;k<ncell+1;k++){	                                               \
     cells[k].jmean=0.0; cells[k].length=0.0;}                                  \
                                                                                \
   /* loop over packets stored in previous timestep */                          \
   for(int j=0;j<nbanki;j++){                                                   \
-    taurem=P_Store[j]._currentTaurem;                                         \
-    cell=P_Store[j]._currentCell;                                          \
-    rcurrent=P_Store[j]._currentDistance;                                     \
+    taurem=P_Store[j]._currentTaurem;                                          \
+    cell=P_Store[j]._currentCell;                                              \
+    rcurrent=P_Store[j]._currentDistance;                                      \
     lrem=cl*cells[1]._dt;                                                      \
     if(cell>ncell){continue;}                                                  \
     if(rcurrent==0.0 && taurem==0.0){continue;}                                \
@@ -208,11 +208,11 @@
    * be read from next step */                                                 \
   for(int j=0;j<nbanki;j++){                                                   \
     P_Store[j]._currentTaurem=P_Store[j]._futureTaurem;                        \
-    P_Store[j]._currentCell=P_Store[j]._futureCell;                      \
+    P_Store[j]._currentCell=P_Store[j]._futureCell;                            \
     P_Store[j]._currentDistance=P_Store[j]._futureDistance;                    \
-    P_Store[j]._futureTaurem=0.0;                                               \
-    P_Store[j]._futureDistance=0.0;                                             \
-    P_Store[j]._futureCell=0;}			                       \
+    P_Store[j]._futureTaurem=0.0;                                              \
+    P_Store[j]._futureDistance=0.0;                                            \
+    P_Store[j]._futureCell=0;}			                               \
                                                                                \
   /* calculate rion */                                                         \
   for (int k=1;k<ncell+1;k++){                                                 \
@@ -239,7 +239,7 @@
 
 //-------------------------------------------------------------------------------------
 #elif IONISATION_MODE == IONISATION_MODE_CONSTANT
-#define get_ionisation_radius() const double rion = INITIAL_IONISATION_RADIUS;
+#define get_ionisation_radius_MC() const double rion = INITIAL_IONISATION_RADIUS;
 #endif
 
 /**
@@ -255,9 +255,9 @@
  * The first two loops are done in get_ionisation_radius, and are not done if
  * we keep the ionisation radius fixed.
  */
-#define do_ionisation()                                                        \
+#define do_ionisation_MC()                                                     \
   /* compute the ionisation radius rion */                                     \
-  get_ionisation_radius();                                                     \
+  get_ionisation_radius_MC();                                                  \
                                                                                \
   /* third loop */                                                             \
   const double rion_min = rion - 0.5 * transition_width;                       \
