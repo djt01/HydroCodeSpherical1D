@@ -148,67 +148,69 @@
 #if IONISATION_MODE == IONISATION_MODE_SELF_CONSISTENT
 //--------------------------------------------------------------------------------------------------------------------------------
 #define get_ionisation_radius_MC()                                             \
-  const double rmin=cells[1]._lowlim;                                          \
-  const double rmax=cells[ncell+1]._uplim;                                     \
-  double Cion =                                                                \
-      const_bondi_Q * get_bondi_Q_factor(central_mass / MASS_POINT_MASS);      \
+  const double rmin=cells[0]._lowlim*UNIT_LENGTH_IN_SI;                        \
+  const double rmax=cells[ncell+2]._uplim*UNIT_LENGTH_IN_SI;                   \
+  double Qion = 2.0e47;                                                        \
   double taurem;                                                               \
   double rcurrent;                                                             \
   double lrem;                                                                 \
   int nphoton=100;                                                             \
-  int nbank;                                                                   \
-  int nbanki=nbank;                                                            \
-  int cell;                                                                    \
-  for(int k=1;k<ncell+1;k++){	                                               \
-    cells[k].jmean=0.0; cells[k].length=0.0;}                                  \
+  int cell;                                                                    \    
+  #pragma omp parallel for                                                     \
+  for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
+    cells[k]._jmean=0.0; cells[k]._length=0.0;}                                \
                                                                                \
   /* loop over packets stored in previous timestep */                          \
-  for(int j=0;j<nbanki;j++){                                                   \
+  for(uint_fast32_t j=0;j<P_Store[0]._currentnbank;j++){                       \
     taurem=P_Store[j]._currentTaurem;                                          \
     cell=P_Store[j]._currentCell;                                              \
     rcurrent=P_Store[j]._currentDistance;                                      \
-    lrem=SPEED_OF_LIGHT_IN_SI*100*cells[1]._dt;                                \
+    lrem=SPEED_OF_LIGHT_IN_SI*cells[0]._dt*UNIT_TIME_IN_SI;                    \
     if(cell>ncell){continue;}                                                  \
     if(rcurrent==0.0 && taurem==0.0){continue;}                                \
     if(rcurrent!=0.0){                                                         \
-      ICT(taurem,rcurrent,cell,lrem,nbank);}                                   \
+      ICT(taurem,rcurrent,cell,lrem,P_Store[0]._futurenbank);}                 \
     while(taurem > 0.0 && lrem>0.0){                                           \
-      PROPAGATE(taurem,cell,lrem,nbank);}                                      \
+      PROPAGATE(taurem,cell,lrem,P_Store[0]._futurenbank);}                    \
       }                                                                        \
                                                                                \
   /*loop over photons emitted from source in this timestep*/                   \
-  for(int j=0;j<nphoton;j++){                                                  \
+  for(uint_fast32_t j=0;j<nphoton;j++){                                        \
     taurem=-log(((double) rand()/RAND_MAX));                                   \
     cell=0;                                                                    \
-    lrem=SPEED_OF_LIGHT_IN_SI*100*cells[1]._dt;                                \
+    lrem=SPEED_OF_LIGHT_IN_SI*cells[1]._dt*UNIT_TIME_IN_SI;                    \
     while(taurem>0.0 && lrem >0.0){                                            \
       if (cell>ncell) {break;}                                                 \
-        PROPAGATE(taurem,cell,lrem,nbank);}                                    \
+        PROPAGATE(taurem,cell,lrem,P_Store[0]._futurenbank);}                  \
       }                                                                        \
                                                                                \
   /* calculate mean intensity in each cell based on total path length          \    
    * travelled through cell*/                                                  \
-  for(int k=1;k<ncell+1;k++){                                                  \
-    cells[k].jmean=                                                            \
-       (Cion*cells[k].sigma*cells[k].length)/                                  \
-       (nphoton*4.0*M_PI*pow(cells[k]._lowlim,2)*cells[k]._V;);}               \
+  #pragma omp parallel for                                                     \
+  for (uint_fast32_t k = 0; 1 < ncell+2; ++k) {                                \
+    cells[k]._jmean=                                                           \
+       (Qion*cells[k]._sigma*cells[k]._length)/                                \
+       (nphoton*4.0*M_PI*pow(cells[k]._lowlim*UNIT_LENGTH_IN_SI,2)*            \
+        cells[k]._V*UNIT_LENGTH_IN_SI;);}                                      \
                                                                                \
   /*update neutral fraction in each cell*/	                               \
-  for(int k=1;k<ncell+1;k++){                                                  \
+  #pragma omp parallel for                                                     \
+  for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
     UPDATE_ION(k);}                                                            \
                                                                                \
   /* finish simulation if number of photons that are being stored              \
    * exceeds size of bankelse set number of photons stored this step           \
    * as nbanki and reset nbank to 0 */                                         \
-  if (nbank>sizebank){                                                         \
+  if (P_Store[0]._futurenbank>sizebank){                                       \
     break;}                                                                    \
   else{                                                                        \
-    nbanki=nbank;                                                              \
-    nbank=0;}                                                                  \
+    P_Store[0]._currentnbank=P_Store[0]._futurenbank;                          \
+    P_Store[0]._futurenbank=0;}                                                \
                                                                                \
   /* shift packets stored this step to first three columns of bank to          \
    * be read from next step */                                                 \
-  for(int j=0;j<nbanki;j++){                                                   \
+  #pragma omp parallel for                                                     \
+  for(uint_fast32_t j=0;j<P_Store[0]._currentnbank;j++){                       \
     P_Store[j]._currentTaurem=P_Store[j]._futureTaurem;                        \
     P_Store[j]._currentCell=P_Store[j]._futureCell;                            \
     P_Store[j]._currentDistance=P_Store[j]._futureDistance;                    \
@@ -217,9 +219,9 @@
     P_Store[j]._futureCell=0;}			                               \
                                                                                \
   /* calculate rion */                                                         \
-  for (int k=1;k<ncell+1;k++){                                                 \
-    if (cells[k].nfac==1.0){                                                   \
-      rion=cell[k]._lowlim;                                                    \
+  for (uint_fast32_t k=0;k<ncell+2;k++){                                       \
+    if (cells[k]._nfac==1.0){                                                  \
+      rion=cell[k]._lowlim*UNIT_LENGTH_IN_SI;                                  \
       break;                                                                   \
       if (k>ncell){rion=rmax}}                                                 \
     }                                                                          \
@@ -648,27 +650,29 @@ void BANK(int& cell, double& taurem, double& radius, int& stored){
 void ICT( int& cell, double& taurem, double& rcurrent, double& lrem, 
          int& stored){
   double taucell=
-              cells[cell].sigma*(cells[cell]._V*100.-rcurrent)*
-              cells[cell].rho/1.674E-21*cells[cell].nfac;
-  if (taurem>taucell && lrem>(cells[cell]._V*100.-rcurrent)){
-    cells[cell].length+=(cells[cell]._V*100.-rcurrent);
+              cells[cell]._sigma*(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent)*
+              cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
+              cells[cell]._nfac;
+  if (taurem>taucell && lrem>(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent)){
+    cells[cell]._length+=(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent);
     taurem-=taucell;
-    lrem-=(cells[cell]._V*100.-rcurrent);
+    lrem-=(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent);
     cell++;
     rcurrent=0.0;}
   else {
     double taulength=
-              taurem/(cells[cell].rho/1.674E-21*cells[cell].nfac*
-              cells[cell].sigma);
+              taurem/(cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*cells[cell]._nfac*
+              cells[cell]._sigma);
     if (taulength<=lrem){
-    cells[cell].length+=taulength;
+    cells[cell]._length+=taulength;
     taurem=0.0;}
     else{
-      cells[cell].length+=lrem;
-      taurem-=(cells[cell].rho/1.674E-21*cells[cell].nfac*
-               cells[cell].sigma*lrem);
+      cells[cell]._length+=lrem;
+      taurem-=(cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
+               cells[cell]._nfac*cells[cell]._sigma*lrem);
       rcurrent+=lrem;
-      if (stored<=sizebank){BANK(cell,taurem,rcurrent,stored);}
+      if (stored<=10000000){BANK(cell,taurem,rcurrent,stored);}
       else{stored++;}
       lrem=0.0;}
      }
@@ -689,25 +693,27 @@ void ICT( int& cell, double& taurem, double& rcurrent, double& lrem,
 
 void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
   double taucell=
-              cells[cell].sigma*cells[cell]._V*100.*
-              cells[cell].rho/1.674E-21*cells[cell].nfac;
-  if (taurem>taucell && lrem>cells[cell]._V*100.){
-    cells[cell].length+=cells[cell]._V*100.;
+              cells[cell]._sigma*cells[cell]._V*UNIT_LENGTH_IN_SI*
+              cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
+              cells[cell]._nfac;
+  if (taurem>taucell && lrem>cells[cell]._V*UNIT_LENGTH_IN_SI){
+    cells[cell]._length+=cells[cell]._V*UNIT_LENGTH_IN_SI;
     taurem-=taucell;
-    lrem-=cells[cell]._V*100.;
+    lrem-=cells[cell]._V*UNIT_LENGTH_IN_SI;
     cell++;}
   else {
     double taulength=
-              taurem/(cells[cell].rho/1.67E-21*cells[cell].nfac*
-              cells[cell].sigma);
+              taurem/(cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*cells[cell]._nfac*
+              cells[cell]._sigma);
     if (taulength<=lrem){
-    cells[cell].length+=taulength;
+    cells[cell]._length+=taulength;
     taurem=0.0;}
     else{
-      cells[cell].length+=lrem;
-      taurem-=(cells[cell].rho/1.674E-21*cells[cell].nfac*
-               cells[cell].sigma*lrem);
-      if (stored<=sizebank){BANK(cell,taurem,lrem,stored);}
+      cells[cell]._length+=lrem;
+      taurem-=(cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
+               cells[cell]._nfac*cells[cell]._sigma*lrem);
+      if (stored<=10000000){BANK(cell,taurem,lrem,stored);}
       else{stored++;}
       lrem=0.0;}
     }
@@ -728,40 +734,54 @@ void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
 
 void UPDATE_ION(int& cell){
   double ImR=
-              cells[1]._dt*(((cells[cell].rho/1.674E-21)*cells[cell].nfac*
-              cells[cell].jmean)-((std::pow(cells[cell].ions,2))*
+              cells[0]._dt*UNIT_TIME_IN_SI*(((cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI))*cells[cell]._nfac*
+              cells[cell]._jmean)-((std::pow(cells[cell]._ions,2))*
               cells[cell]._alphaB));
   double frac;
-  if (cells[cell].equil==0){
-    if (ImR>(cells[cell].rho/1.674E-21*cells[cell].nfac)){
-      if (cells[cell].nfac==1.0){
-        cells[cell].nfac=1.0E-8;
-        cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.674E-21;}
+  if (cells[cell]._equil==0){
+    if (ImR>(cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
+        cells[cell]._nfac)){
+      if (cells[cell]._nfac==1.0){
+        cells[cell]._nfac=1.0E-8;
+        cells[cell]._ions=
+              (1.0-cells[cell]._nfac)*cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI);}
       else{
         frac=
-               cells[cell].jmean/(cells[cell]._alphaB*
-               cells[cell].rho/1.674E-21);
-        cells[cell].nfac=
+               cells[cell]._jmean/(cells[cell]._alphaB*
+               cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI));
+        cells[cell]._nfac=
               (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
-        cells[cell].ions=(1.0-cells[cell].nfac)*cells[cell].rho/1.674E-21;
-        cells[cell].equil=1;}
+        cells[cell]._ions=
+              (1.0-cells[cell]._nfac)*cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI);
+        cells[cell]._equil=1;}
     }
     else{
-      cells[cell].ions=cells[cell].ions+ImR;
-      cells[cell].nfac=1.0-(cells[cell].ions/(cells[cell].rho/1.67E-21));}
+      cells[cell]._ions=cells[cell]._ions+ImR;
+      cells[cell]._nfac=
+              1.0-(cells[cell]._ions/(cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));}
     }
   else{
-    /*if(ImR<(cells[cell].rho/1.67E-21*cells[cell].nfac)){
-      cells[cell].ions=cells[cell].ions+ImR;
-      cells[cell].nfac=1.0-(cells[cell].ions/(cells[cell].rho/1.67E-21));
-      cells[cell].equil=0;}
+    /*if(ImR<(cells[cell]._rho*
+         UNIT_DENSITY_IN_SI/(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
+         cells[cell]._nfac)){
+      cells[cell]._ions=cells[cell]._ions+ImR;
+      cells[cell]._nfac=
+              1.0-(cells[cell]._ions/(cells[cell]._rho*
+              UNIT_DENSITY_IN_SI/1.67E-21));
+      cells[cell]._equil=0;}
     else{ */				
       frac=
-               cells[cell].jmean/(cells[cell]._alphaB*
-               (cells[cell].rho/1.674E-21));
-      cells[cell].nfac=
+               cells[cell]._jmean/(cells[cell]._alphaB*
+               (cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));
+      cells[cell]._nfac=
               (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
-      cells[cell].ions=(1.0-cells[cell].nfac)*(cells[cell].rho/1.67E-21);}
+      cells[cell]._ions=
+              (1.0-cells[cell]._nfac)*(cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI));}
 /*  } */
 }
 
