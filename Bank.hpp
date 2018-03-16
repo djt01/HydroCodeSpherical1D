@@ -54,6 +54,9 @@ public:
   /*! @brief Current physical position of packet in grid cell, in relation to 
    *  lower boundary (in internal units of L). */
   double _futureDistance;
+  /*! @brief Number of packets stored in bank this timestep */
+  int _nbank;
 };
+
 
 #endif // BANK_HPP

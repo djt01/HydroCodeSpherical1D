@@ -411,7 +411,7 @@ int main(int argc, char **argv) {
   }
 
   // create storage bank for Monte Carlo photon packets in ionisation steps
-  Bank *P_Store = new Bank[10000000]
+  Bank *P_Store = new Bank[10000000];
   #pragma omp parallel for
   for (uint_fast32_t i = 0; i < 10000000; ++i) {
     P_Store[i]._currentCell = 0;
@@ -420,6 +420,8 @@ int main(int argc, char **argv) {
     P_Store[i]._futureCell = 0;
     P_Store[i]._futureTaurem = 0.;
     P_Store[i]._futureDistance = 0.;
+    P_Store[i]._currentnbank = 0;
+    P_Store[i]._futurenbank = 0;
   }
 
   // set up the initial condition

@@ -87,7 +87,7 @@ public:
   /*! @brief Mean intensity indicator (for MC) (in internal units of T^-1). */
   double _jmean;
   /*! @brief Path length indicator (in internal units of L). */
-  double length;
+  double _length;
   /*! @brief Flag to indicate ioniasation equilibrium state
    *  (0 = out of equilibrium, 1 = in equilibrium). */
   double _equil;
