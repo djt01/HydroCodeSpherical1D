@@ -151,6 +151,7 @@
   const double rmin=cells[0]._lowlim*UNIT_LENGTH_IN_SI;                        \
   const double rmax=cells[ncell+2]._uplim*UNIT_LENGTH_IN_SI;                   \
   double Qion = 2.0e47;                                                        \
+  double timepassed=current_integer_time*time_conversion_factor                \
   double taurem;                                                               \
   double rcurrent;                                                             \
   double lrem;                                                                 \
@@ -196,7 +197,9 @@
   /*update neutral fraction in each cell*/	                               \
   #pragma omp parallel for                                                     \
   for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
-    UPDATE_ION(k);}                                                            \
+    /*UPDATE_ION(k)*/;                                                         \
+    UPDATE_ION_DIFF(k,timepassed,cells[1]._dt*UNIT_TIME_IN_SI);                \
+    cells[k]._last_jmean=cells[k]._jmean;}                                     \
                                                                                \
   /* finish simulation if number of photons that are being stored              \
    * exceeds size of bankelse set number of photons stored this step           \
@@ -783,6 +786,55 @@ void UPDATE_ION(int& cell){
               (1.0-cells[cell]._nfac)*(cells[cell]._rho*
               (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI));}
 /*  } */
+}
+
+//-------------------------------------------------------------------------------
+
+/**
+ * @brief updates neutral fraction in cell according to solution to 
+ * differential equation df/dt=(1-f)*jmean-f^2*(ntot*alphaB) where f is the
+ * ionised fraction of the cell.
+ *
+ * @param cell Cell location of packet.
+ * @param timep t_0 : simulation time of previous step
+ * @param delta Simulation time since t_0
+ */
+
+void UPDATE_ION_DIFF(int& cell,double& timep,double& delta){
+  double ConB=
+              (cells[cell]._alphaB*(cells[cell]._rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));
+  double last_ConB=
+              (cells[cell]._alphaB*(cells[cell]._last_rho*
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));
+  if(cells[cell]._nfac==1.0){
+    cells[cell]._ifrac=
+              cells[cell]._ft0+cells[cell]._jmean*delta+
+              (cells[cell]._jmean-cells[cell]._last_jmean)*timep;
+    if(cells[cell]._ifrac>1.0){
+      cells[cell]._nfac=1.0E-8;
+      cells[cell]._ifrac=1.0-cells[cell]._nfac;}
+    else{cells[cell]._nfac=1.0-cells[cell]._ifrac;}
+    cells[cell]._ft0=cells[cell]._ifrac;    
+  }
+  else{
+    if(cells[cell]._jmean==0.0 or cells[cell]._nfac==0.0){
+      cells[cell]._ifrac=1./((1./cells[cell]._ft0)+ConB*delta);
+      cells[cell]._nfac=1.0-cells[cell]._ifrac;
+      cells[cell]._ft0=cells[cell]._ifrac;}
+    else{
+      double IoR=(cells[cell]._jmean)/ConB;
+      double root=sqrt(IoR*(IoR+4.));
+      double last_IoR=(cells[cell]._last_jmean)/last_ConB;
+      double last_root=sqrt(last_IoR*(last_IoR+4.));
+      double arg=(2*cells[cell]._ft0+last_IoR)/last_root
+      if (arg>=1.0){arg=0.999987;}
+      cells[cell]._ifrac=
+              0.5*root*tanh(0.5*ConB*root*(2./(ConB*last_root)*
+              atanh(arg)+delta))-0.5*IoR;
+      cells[cell]._nfac=1.0-cells[cell]._ifrac;
+      cells[cell]._ft0=cells[cell]._ifrac;}
+  }
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------
