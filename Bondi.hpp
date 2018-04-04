@@ -26,7 +26,8 @@
 #ifndef BONDI_HPP
 #define BONDI_HPP
 
-#include "Cell.hpp"           // Cell classe
+#include "Cell.hpp"           // Cell class
+#include "Bank.hpp"           // Bank class
 #include "LambertW.hpp"       // Lambert W function implementation
 #include "SafeParameters.hpp" // Safe way to include Parameters.hpp
 
@@ -194,6 +195,101 @@
   }
 #elif IONISATION_MODE == IONISATION_MODE_CONSTANT
 #define get_ionisation_radius() const double rion = INITIAL_IONISATION_RADIUS;
+#elif IONISATION_MODE == IONISATION_MODE_MONTE_CARLO_TRANSFER
+#define get_ionisation_radius()                                                \
+  const double rmin=cells[0]._lowlim*UNIT_LENGTH_IN_SI;                        \
+  const double rmax=cells[ncell+2]._uplim*UNIT_LENGTH_IN_SI;                   \
+  double Qion = 2.0e47;                                                        \
+  double timepassed=current_integer_time*time_conversion_factor                \
+  double taurem;                                                               \
+  double rcurrent;                                                             \
+  double lrem;                                                                 \
+  int nphoton=1000;                                                            \
+  int cell;                                                                    \
+  int nbank=P_Store[0]._futurenbank                                            \
+  P_Store[0]._futurenbank=0    
+  #pragma omp parallel for                                                     \
+  for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
+    cells[k]._jmean=0.0; cells[k]._length=0.0;}                                \
+                                                                               \
+  /* loop over packets stored in previous timestep */                          \
+  for(uint_fast32_t j=0;j<nbank;j++){                                          \
+    taurem=P_Store[j]._currentTaurem;                                          \
+    cell=P_Store[j]._currentCell;                                              \
+    rcurrent=P_Store[j]._currentDistance;                                      \
+    lrem=SPEED_OF_LIGHT_IN_SI*cells[0]._dt*UNIT_TIME_IN_SI;                    \
+    if(cell>ncell){continue;}                                                  \
+    if(rcurrent==0.0 && taurem==0.0){continue;}                                \
+    if(rcurrent!=0.0){                                                         \
+      ICT(taurem,rcurrent,cell,lrem,P_Store[0]._futurenbank);}                 \
+    while(taurem > 0.0 && lrem>0.0){                                           \
+      PROPAGATE(taurem,cell,lrem,P_Store[0]._futurenbank);}                    \
+      }                                                                        \
+                                                                               \
+  /*loop over photons emitted from source in this timestep*/                   \
+  for(uint_fast32_t j=0;j<nphoton;j++){                                        \
+    taurem=-log(((double) rand()/RAND_MAX));                                   \
+    cell=0;                                                                    \
+    lrem=SPEED_OF_LIGHT_IN_SI*cells[1]._dt*UNIT_TIME_IN_SI;                    \
+    while(taurem>0.0 && lrem >0.0){                                            \
+      if (cell>ncell) {break;}                                                 \
+        PROPAGATE(taurem,cell,lrem,P_Store[0]._futurenbank);}                  \
+      }                                                                        \
+                                                                               \
+  /* calculate mean intensity in each cell based on total path length          \    
+   * travelled through cell*/                                                  \
+  #pragma omp parallel for                                                     \
+  for (uint_fast32_t k = 0; 1 < ncell+2; ++k) {                                \
+    cells[k]._jmean=                                                           \
+       (Qion*cells[k]._sigma*cells[k]._length)/                                \
+       (nphoton*4.0*M_PI*pow(cells[k]._lowlim*UNIT_LENGTH_IN_SI,2)*            \
+        cells[k]._V*UNIT_LENGTH_IN_SI;);}                                      \
+                                                                               \
+  /*update neutral fraction in each cell*/	                               \
+  #pragma omp parallel for                                                     \
+  for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
+    UPDATE_ION(k,/*timepassed,*/cells[1]._dt*UNIT_TIME_IN_SI);                 \
+    cells[k]._last_jmean=cells[k]._jmean;}                                     \
+                                                                               \
+  /* finish simulation if number of photons that are being stored              \
+   * exceeds size of bankelse set number of photons stored this step           \
+   * as nbanki and reset nbank to 0 */                                         \
+  if (P_Store[0]._futurenbank>sizebank){                                       \
+    break;}                                                                    \
+                                                                               \
+  /* shift packets stored this step to first three columns of bank to          \
+   * be read from next step */                                                 \
+  #pragma omp parallel for                                                     \
+  for(uint_fast32_t j=0;j<P_Store[0]._futurenbank;j++){                        \
+    P_Store[j]._currentTaurem=P_Store[j]._futureTaurem;                        \
+    P_Store[j]._currentCell=P_Store[j]._futureCell;                            \
+    P_Store[j]._currentDistance=P_Store[j]._futureDistance;                    \
+    P_Store[j]._futureTaurem=0.0;                                              \
+    P_Store[j]._futureDistance=0.0;                                            \
+    P_Store[j]._futureCell=0;}			                               \
+                                                                               \
+  /* calculate rion */                                                         \
+  for (uint_fast32_t k=0;k<ncell+2;k++){                                       \
+    if (cells[k]._nfac==1.0){                                                  \
+      rion=cell[k]._lowlim*UNIT_LENGTH_IN_SI;                                  \
+      break;                                                                   \
+      if (k>ncell){rion=rmax}}                                                 \
+    }                                                                          \
+                                                                               \
+  /* check if we need to write to the file */                                  \
+  if (std::abs(rion - rion_old) > 1.e-2 * std::abs(rion + rion_old)) {         \
+    const double curtime =                                                     \
+        current_integer_time * time_conversion_factor * UNIT_TIME_IN_SI;       \
+    const double ionrad = rion * UNIT_LENGTH_IN_SI;                            \
+    Cion = const_bondi_Q * get_bondi_Q_factor(central_mass / MASS_POINT_MASS); \
+    bondi_rfile.write(reinterpret_cast<const char *>(&curtime),                \
+                      sizeof(double));                                         \
+    bondi_rfile.write(reinterpret_cast<const char *>(&ionrad),                 \
+                      sizeof(double));                                         \
+    bondi_rfile.write(reinterpret_cast<const char *>(&Cion), sizeof(double));  \
+    bondi_rfile.flush();                                                       \
+    rion_old = rion;                                                           \
+  }
 #endif
 
 /**
@@ -563,5 +659,151 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
   }
 
 #endif // IC == IC_BONDI
+
+/**
+ * @brief Store photon packets for which distance travelled exceeds that 
+ * allowed in one timestep.
+ *
+ * @param cell Cell location of packet to be stored.
+ * @param taurem Remaining optical depth packet has to travel.
+ * @param radius Distance from current cell lower boundary that packet has 
+ * travelled (in internal units of L).
+ * @param stored Number of packets added to bank so far this timestep
+ */
+
+#define BANK(int& cell, double& taurem, double& radius, int& stored)          \
+  P_Store[stored]._futureCell=cell;                                           \
+  P_Store[stored]._futureDistance=radius;                                     \
+  P_Store[stored]._futureTaurem=taurem;                                       \
+  stored++;                                                                   \
+  
+/**
+ * @brief Propagates stored packets through to end of cell in which they were
+ * stored (if they can reach end of cell in timestep without being absorbed).
+ *
+ * @param cell Cell location of packet.
+ * @param taurem Remaining optical depth packet has to travel.
+ * @param rcurrent Distance from current cell lower boundary that packet has 
+ * travelled (in internal units of L).
+ * @param lrem Distance packet can travel in this timestep (in internal units 
+ * of L).
+ * @param stored Number of packets added to bank so far this timestep
+ */
+
+#define ICT( int& cell, double& taurem, double& rcurrent, double& lrem,       \
+         int& stored)                                                         \
+  double taucell=                                                             \
+              cells[cell]._sigma*(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent)* \
+              cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*      \
+              cells[cell]._nfac;                                              \
+  if (taurem>taucell && lrem>(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent)){    \
+    cells[cell]._length+=(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent);         \
+    taurem-=taucell;                                                          \
+    lrem-=(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent);                        \
+    cell++;                                                                   \
+    rcurrent=0.0;}                                                            \
+  else {                                                                      \
+    double taulength=                                                         \
+              taurem/(cells[cell]._rho*                                       \
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*cells[cell]._nfac*     \
+              cells[cell]._sigma);                                            \
+    if (taulength<=lrem){                                                     \
+    cells[cell]._length+=taulength;                                           \
+    taurem=0.0;}                                                              \
+    else{                                                                     \
+      cells[cell]._length+=lrem;                                              \
+      taurem-=(cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*     \
+               cells[cell]._nfac*cells[cell]._sigma*lrem);                    \
+      rcurrent+=lrem;                                                         \
+      if (stored<=10000000){BANK(cell,taurem,rcurrent,stored);}               \
+      else{stored++;}                                                         \
+      lrem=0.0;}                                                              \
+     }                                                                        \
+  
+
+/**
+ * @brief Propagates packet through current cell. If packet is unable to  
+ * reach end of  cell either absorbed (remaining optical depth to travel 
+ * less than cell optical depth) and terminated, or banked (if cannot  
+ * travel physical distance of cell in remaining timestep). 
+ *
+ * @param cell Cell location of packet.
+ * @param taurem Remaining optical depth packet has to travel.
+ * @param lrem Distance packet can travel in this timestep (in internal  
+ * units of L).
+ * @param stored Number of packets added to bank so far this timestep
+ */
+
+#define PROPAGATE(int& cell, double& taurem,double& lrem, int& stored)         \
+  double taucell=                                                              \
+              cells[cell]._sigma*cells[cell]._V*UNIT_LENGTH_IN_SI*             \
+              cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*       \
+              cells[cell]._nfac;                                               \
+  if (taurem>taucell && lrem>cells[cell]._V*UNIT_LENGTH_IN_SI){                \
+    cells[cell]._length+=cells[cell]._V*UNIT_LENGTH_IN_SI;                     \
+    taurem-=taucell;                                                           \
+    lrem-=cells[cell]._V*UNIT_LENGTH_IN_SI;                                    \
+    cell++;}                                                                   \
+  else {                                                                       \
+    double taulength=                                                          \
+              taurem/(cells[cell]._rho*                                        \
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*cells[cell]._nfac*      \
+              cells[cell]._sigma);                                             \
+    if (taulength<=lrem){                                                      \
+    cells[cell]._length+=taulength;                                            \
+    taurem=0.0;}                                                               \
+    else{                                                                      \
+      cells[cell]._length+=lrem;                                               \
+      taurem-=(cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*      \
+               cells[cell]._nfac*cells[cell]._sigma*lrem);                     \
+      if (stored<=10000000){BANK(cell,taurem,lrem,stored);}                    \
+      else{stored++;}                                                          \
+      lrem=0.0;}                                                               \
+    }                                                                          \
+
+/**
+ * @brief updates neutral fraction in cell according to solution to 
+ * differential equation df/dt=(1-f)*jmean-f^2*(ntot*alphaB) where f is the
+ * ionised fraction of the cell.
+ *
+ * @param cell Cell location of packet.
+ * @param timep t_0 : simulation time of previous step
+ * @param delta Simulation time since t_0
+ */
+
+#define UPDATE_ION(int& cell,/*double& timep,*/double& delta)                 \
+  double ConB=                                                                \
+              (cells[cell]._alphaB*(cells[cell]._rho*                         \
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));                     \
+  /*double last_ConB=                                                         \
+              (cells[cell]._alphaB*(cells[cell]._last_rho*                    \
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));*/                   \
+  if(cells[cell]._nfac==1.0){                                                 \
+    cells[cell]._ifrac=                                                       \
+              cells[cell]._ft0+cells[cell]._jmean*delta;/*+                   \
+              (cells[cell]._jmean-cells[cell]._last_jmean)*timep;*/           \
+    if(cells[cell]._ifrac>1.0){                                               \
+      cells[cell]._nfac=1.0E-8;                                               \
+      cells[cell]._ifrac=1.0-cells[cell]._nfac;}                              \
+    else{cells[cell]._nfac=1.0-cells[cell]._ifrac;}                           \
+    cells[cell]._ft0=cells[cell]._ifrac;                                      \
+  }                                                                           \
+  else{                                                                       \
+    if(cells[cell]._jmean==0.0 or cells[cell]._nfac==0.0){                    \
+      cells[cell]._ifrac=1./((1./cells[cell]._ft0)+ConB*delta);               \
+      cells[cell]._nfac=1.0-cells[cell]._ifrac;                               \
+      cells[cell]._ft0=cells[cell]._ifrac;}                                   \
+    else{                                                                     \
+      double IoR=(cells[cell]._jmean)/ConB;                                   \
+      double root=sqrt(IoR*(IoR+4.));                                         \
+      /*double last_IoR=(cells[cell]._last_jmean)/last_ConB;                  \
+      double last_root=sqrt(last_IoR*(last_IoR+4.));*/                        \
+      double arg=(2*cells[cell]._ft0+IoR)/root;                               \
+      double arg2=0.5*ConB*root*delta;                                        \
+      cells[cell]._ifrac=                                                     \
+              0.5*root*((arg+tanh(arg2))/(1.+arg*tanh(arg2)))-0.5*IoR;        \
+      cells[cell]._nfac=1.0-cells[cell]._ifrac;                               \
+      cells[cell]._ft0=cells[cell]._ifrac;}                                   \
+  }
 
 #endif // BONDI_HPP

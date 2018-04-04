@@ -26,7 +26,6 @@
 
 // project includes
 #include "Bondi.hpp"             // for EOS_BONDI, BOUNDARIES_BONDI, IC_BONDI
-#include "BondiMC.hpp"		 // for EOS_BONDI, BOUNDARIES_BONDI, IC_BONDI with MC photoionisation
 #include "Boundaries.hpp"        // for non Bondi boundary conditions
 #include "Cell.hpp"              // Cell class
 #include "Bank.hpp"              // Bank class
@@ -404,7 +403,7 @@ int main(int argc, char **argv) {
     cells[i]._equil = 0;
     cells[i]._ifrac=1.0-cells[i]._nfac;
     cells[i]._ft0=cells[i]._ifrac;
-    cells[i]._last_jmean=0.0
+    cells[i]._last_jmean=0.0;
     // initialize the time step to a sensible value: the requested snapshot time
     // interval
     cells[i]._dt = (MAXTIME / NUMBER_OF_SNAPS);
@@ -423,7 +422,6 @@ int main(int argc, char **argv) {
     P_Store[i]._futureCell = 0;
     P_Store[i]._futureTaurem = 0.;
     P_Store[i]._futureDistance = 0.;
-    P_Store[i]._currentnbank = 0;
     P_Store[i]._futurenbank = 0;
   }
 

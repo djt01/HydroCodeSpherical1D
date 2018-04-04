@@ -30,7 +30,6 @@
 
 // The Bondi specific EOS stuff is in the file Bondi.hpp
 #include "Bondi.hpp"		//Numerical integration of source luminosity
-//#include "BondiMC.hpp"		//TD Monte Carlo Simulation for rion
 
 #else // EOS == EOS_BONDI
 
@@ -61,12 +60,12 @@
  * do_ionisation uses numerical integration of source luminosity to establish
  * rion
  *
- * do_ionisation_MC uses time dependant Monte Carlo code to establish rion
+ * do_ionisation uses time dependant Monte Carlo code to establish rion if
+ * IONISATION_MODE == IONISATION_MODE_MONTE_CARLO_TRANSFER
  *
  * Not used for an ideal or isothermal equation of state.
  */
 #define do_ionisation()
-//#define do_ionisation_MC()
 
 /**
  * @brief Code to handle the mass flux into the inner mask.
