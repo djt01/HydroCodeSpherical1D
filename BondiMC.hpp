@@ -155,7 +155,7 @@
   double taurem;                                                               \
   double rcurrent;                                                             \
   double lrem;                                                                 \
-  int nphoton=100;                                                             \
+  int nphoton=1000;                                                            \
   int cell;                                                                    \    
   #pragma omp parallel for                                                     \
   for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
@@ -197,8 +197,7 @@
   /*update neutral fraction in each cell*/	                               \
   #pragma omp parallel for                                                     \
   for (uint_fast32_t k = 0; k < ncell+2; ++k){                                 \
-    /*UPDATE_ION(k)*/;                                                         \
-    UPDATE_ION_DIFF(k,timepassed,cells[1]._dt*UNIT_TIME_IN_SI);                \
+    UPDATE_ION(k,/*timepassed,*/cells[1]._dt*UNIT_TIME_IN_SI);                 \
     cells[k]._last_jmean=cells[k]._jmean;}                                     \
                                                                                \
   /* finish simulation if number of photons that are being stored              \
@@ -723,74 +722,6 @@ void PROPAGATE(int& cell, double& taurem,double& lrem, int& stored){
   }
 
 /**
- * @brief updates neutral fraction in cell. If cell not in ionisation  
- * equilibrium (equil[cell]==0, function checks if there are enough ionising 
- * intensity in cell to overionise remaining neutral particles. If yes then  
- * nfac calculated as if cell in ionising equilibrium, as in static  
- * situation, and equil[cell]=1. If no then number of ions in cell calculated 
- * by n+(i+1)=n+(i) + dt(I-R). Neutral fraction calcuated based off this.
- * If cell is in ionising equilibrium then nfac updated as if cell in 
- * ionising equilibrium, as in static situation. 
- *
- * @param cell Cell location of packet.
- */
-
-void UPDATE_ION(int& cell){
-  double ImR=
-              cells[0]._dt*UNIT_TIME_IN_SI*(((cells[cell]._rho*
-              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI))*cells[cell]._nfac*
-              cells[cell]._jmean)-((std::pow(cells[cell]._ions,2))*
-              cells[cell]._alphaB));
-  double frac;
-  if (cells[cell]._equil==0){
-    if (ImR>(cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
-        cells[cell]._nfac)){
-      if (cells[cell]._nfac==1.0){
-        cells[cell]._nfac=1.0E-8;
-        cells[cell]._ions=
-              (1.0-cells[cell]._nfac)*cells[cell]._rho*
-              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI);}
-      else{
-        frac=
-               cells[cell]._jmean/(cells[cell]._alphaB*
-               cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI));
-        cells[cell]._nfac=
-              (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
-        cells[cell]._ions=
-              (1.0-cells[cell]._nfac)*cells[cell]._rho*
-              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI);
-        cells[cell]._equil=1;}
-    }
-    else{
-      cells[cell]._ions=cells[cell]._ions+ImR;
-      cells[cell]._nfac=
-              1.0-(cells[cell]._ions/(cells[cell]._rho*
-              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));}
-    }
-  else{
-    /*if(ImR<(cells[cell]._rho*
-         UNIT_DENSITY_IN_SI/(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*
-         cells[cell]._nfac)){
-      cells[cell]._ions=cells[cell]._ions+ImR;
-      cells[cell]._nfac=
-              1.0-(cells[cell]._ions/(cells[cell]._rho*
-              UNIT_DENSITY_IN_SI/1.67E-21));
-      cells[cell]._equil=0;}
-    else{ */				
-      frac=
-               cells[cell]._jmean/(cells[cell]._alphaB*
-               (cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));
-      cells[cell]._nfac=
-              (1.0+(frac/2.0))-(std::sqrt((1.0/4.0)*(frac)*(4.0+frac)));
-      cells[cell]._ions=
-              (1.0-cells[cell]._nfac)*(cells[cell]._rho*
-              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI));}
-/*  } */
-}
-
-//-------------------------------------------------------------------------------
-
-/**
  * @brief updates neutral fraction in cell according to solution to 
  * differential equation df/dt=(1-f)*jmean-f^2*(ntot*alphaB) where f is the
  * ionised fraction of the cell.
@@ -800,17 +731,17 @@ void UPDATE_ION(int& cell){
  * @param delta Simulation time since t_0
  */
 
-void UPDATE_ION_DIFF(int& cell,double& timep,double& delta){
+void UPDATE_ION(int& cell,/*double& timep,*/double& delta){
   double ConB=
               (cells[cell]._alphaB*(cells[cell]._rho*
               (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));
-  double last_ConB=
+  /*double last_ConB=
               (cells[cell]._alphaB*(cells[cell]._last_rho*
-              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));
+              (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));*/
   if(cells[cell]._nfac==1.0){
     cells[cell]._ifrac=
-              cells[cell]._ft0+cells[cell]._jmean*delta+
-              (cells[cell]._jmean-cells[cell]._last_jmean)*timep;
+              cells[cell]._ft0+cells[cell]._jmean*delta;/*+
+              (cells[cell]._jmean-cells[cell]._last_jmean)*timep;*/
     if(cells[cell]._ifrac>1.0){
       cells[cell]._nfac=1.0E-8;
       cells[cell]._ifrac=1.0-cells[cell]._nfac;}
@@ -825,13 +756,12 @@ void UPDATE_ION_DIFF(int& cell,double& timep,double& delta){
     else{
       double IoR=(cells[cell]._jmean)/ConB;
       double root=sqrt(IoR*(IoR+4.));
-      double last_IoR=(cells[cell]._last_jmean)/last_ConB;
-      double last_root=sqrt(last_IoR*(last_IoR+4.));
-      double arg=(2*cells[cell]._ft0+last_IoR)/last_root
-      if (arg>=1.0){arg=0.999987;}
+      //double last_IoR=(cells[cell]._last_jmean)/last_ConB;
+      //double last_root=sqrt(last_IoR*(last_IoR+4.));
+      double arg=(2*cells[cell]._ft0+IoR)/root
+      double arg2=0.5*ConB*root*delta;
       cells[cell]._ifrac=
-              0.5*root*tanh(0.5*ConB*root*(2./(ConB*last_root)*
-              atanh(arg)+delta))-0.5*IoR;
+              0.5*root*((arg+tanh(arg2))/(1.+arg*tanh(arg2)))-0.5*IoR;
       cells[cell]._nfac=1.0-cells[cell]._ifrac;
       cells[cell]._ft0=cells[cell]._ifrac;}
   }
