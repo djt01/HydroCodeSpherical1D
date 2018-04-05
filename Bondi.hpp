@@ -54,6 +54,11 @@
   double rion_old = 0.;                                                        \
                                                                                \
   std::ofstream bondi_rfile("ionisation_radius.dat");
+#elif IONISATION_MODE == IONISATION_MODE_MONTE_CARLO_TRANSFER
+#define initialize_bondi_rfile()                                               \
+  double rion_old = 0.;                                                        \
+                                                                               \
+  std::ofstream bondi_rfile("ionisation_radius.dat");
 #elif IONISATION_MODE == IONISATION_MODE_CONSTANT
 #define initialize_bondi_rfile()
 #endif
@@ -138,7 +143,7 @@
   cells[i]._P = ISOTHERMAL_C_SQUARED * cells[i]._rho *                         \
                 (bondi_pressure_contrast * ifac + nfac);
 
-/**
+/**is:starred 
  * @brief Compute the ionisation radius by numerically integrating the density
  * squared until the desired target luminosity is reached.
  *
@@ -671,7 +676,7 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
  * @param stored Number of packets added to bank so far this timestep
  */
 
-#define BANK(int& cell, double& taurem, double& radius, int& stored)          \
+#define BANK(cell,taurem,radius,stored)                                       \
   P_Store[stored]._futureCell=cell;                                           \
   P_Store[stored]._futureDistance=radius;                                     \
   P_Store[stored]._futureTaurem=taurem;                                       \
@@ -690,8 +695,7 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
  * @param stored Number of packets added to bank so far this timestep
  */
 
-#define ICT( int& cell, double& taurem, double& rcurrent, double& lrem,       \
-         int& stored)                                                         \
+#define ICT(cell,taurem,rcurrent,lrem,stored)                                 \
   double taucell=                                                             \
               cells[cell]._sigma*(cells[cell]._V*UNIT_LENGTH_IN_SI-rcurrent)* \
               cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*      \
@@ -734,7 +738,7 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
  * @param stored Number of packets added to bank so far this timestep
  */
 
-#define PROPAGATE(int& cell, double& taurem,double& lrem, int& stored)         \
+#define PROPAGATE(cell,taurem,lrem,stored)                                     \
   double taucell=                                                              \
               cells[cell]._sigma*cells[cell]._V*UNIT_LENGTH_IN_SI*             \
               cells[cell]._rho*(UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)*       \
@@ -771,7 +775,7 @@ inline static double get_neutral_fraction(const double rmin, const double rmax,
  * @param delta Simulation time since t_0
  */
 
-#define UPDATE_ION(int& cell,/*double& timep,*/double& delta)                 \
+#define UPDATE_ION(cell,/*timep,*/delta)                                      \
   double ConB=                                                                \
               (cells[cell]._alphaB*(cells[cell]._rho*                         \
               (UNIT_DENSITY_IN_SI/HYDROGEN_MASS_IN_SI)));                     \

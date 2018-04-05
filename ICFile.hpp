@@ -38,6 +38,7 @@
   /* open the initial condition file */                                        \
   std::ifstream icfile(ic_file_name.c_str());                                  \
   if (!icfile.good()) {                                                        \
+    std::cerr << "Looking for" << '\t' << ic_file_name << std::endl;           \
     std::cerr << "Initial condition file not found!" << std::endl;             \
     return 1;                                                                  \
   }                                                                            \
