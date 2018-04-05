@@ -52,12 +52,16 @@ def cubic_spline(x, center, h, factor):
                            np.zeros(len(x))))                  
 
 # Make sure we have 2 command line arguments: the input and output file name
-if len(sys.argv) < 3:
-  print "Usage: python add_density_perturbation input_file output_file"
+if len(sys.argv) < 4:
+  print "Usage: python add_density_perturbation input_file output_file rho_p"
   exit()
+
 
 name = sys.argv[1]
 outname = sys.argv[2]
+fac = float(sys.argv[3])
+
+print fac
 
 # memory-map the input file to a read-only numpy array
 fp = np.memmap(name, dtype = 'd', mode = 'r')
@@ -72,7 +76,7 @@ r = 0.5 * (r[1:] + r[:-1])
 copy = data.copy()
 
 # apply the density bump filter
-copy[:,0] *= np.where(r > 60., np.where(r < 70., cubic_spline(r, 65., 5., 0.1),
+copy[:,0] *= np.where(r > 60., np.where(r < 70., cubic_spline(r, 65., 5., fac),
                                                  np.ones(len(r))),
                                np.ones(len(r)))
 
