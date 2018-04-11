@@ -34,7 +34,7 @@
  */
 #define initialize(cells, ncell)                                               \
   _Pragma("omp parallel for") for (unsigned int i = 1; i < ncell + 1; ++i) {   \
-    cells[i]._rho = 5.21e-18 / UNIT_DENSITY_IN_SI;                             \
+    cells[i]._rho = 5.21E-18 / UNIT_DENSITY_IN_SI;/*initially 5.21E-18 */      \
     cells[i]._u = 0.;                                                          \
     cells[i]._P = 1.;                                                          \
     cells[i]._a = 0.;                                                          \

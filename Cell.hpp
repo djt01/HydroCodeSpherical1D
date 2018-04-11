@@ -82,16 +82,18 @@ public:
 
   /*! @brief Neutral fraction. */
   double _nfac;
+  /*! @brief Neutral fraction for use with Monte Carlo determination of Ion Radius. */
+  double _nfac_MC;
   /*! @brief Ionised fraction. */
   double _ifrac;
-  /*! @brief Absorbtion cross section (in internal units of L^-2). */
+  /*! @brief Absorbtion cross section (in SI units of m^2). */
   double _sigma;
-  /*! @brief Mean intensity indicator (for MC) (in internal units of T^-1). */
+  /*! @brief Mean intensity indicator (for MC) (in SI units of s^-1). */
   double _jmean;
-  /*! @brief Mean intensity indicator from previous timestep (for MC) (in internal 
-   * units of T^-1). */
+  /*! @brief Mean intensity indicator from previous timestep (for MC) (in SI 
+   * units of s^-1). */
   double _last_jmean;
-  /*! @brief Path length indicator (in internal units of L). */
+  /*! @brief Path length indicator (in SI units of m). */
   double _length;
   /*! @brief Flag to indicate ioniasation equilibrium state
    *  (0 = out of equilibrium, 1 = in equilibrium). */
@@ -100,8 +102,7 @@ public:
   double _ions;
   /*! @brief Neutral fraction at time t_0. */
   double _ft0;
-
-  /*! @brief Recombination coefficient to n = 2 level (in L^3 T^-1). */
+  /*! @brief Recombination coefficient to n = 2 level (in SI units of m^3 s^-1). */
   double _alphaB;
 
   // time step

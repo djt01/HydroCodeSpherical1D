@@ -398,15 +398,16 @@ int main(int argc, char **argv) {
     cells[i]._uplim = RMIN + i * CELLSIZE;
     cells[i]._V = CELLSIZE;
     cells[i]._integer_dt = 0;
-    cells[i]._sigma = 3.0e-14;
-    cells[i]._alphaB = 3.0e-19;
-    cells[i]._equil = 0;
-    cells[i]._ifrac=1.0-cells[i]._nfac;
+    cells[i]._sigma = 6.3e-22;
+    cells[i]._alphaB = 2.7e-19;
+    cells[i]._nfac_MC = 1.0;
+    cells[i]._ifrac=1.0-cells[i]._nfac_MC;
     cells[i]._ft0=cells[i]._ifrac;
     cells[i]._last_jmean=0.0;
     // initialize the time step to a sensible value: the requested snapshot time
     // interval
-    cells[i]._dt = (MAXTIME / NUMBER_OF_SNAPS);
+    /*ORIGINAL: cells[i]._dt = (MAXTIME / NUMBER_OF_SNAPS);*/
+    cells[i]._dt = 1E5/UNIT_TIME_IN_SI;
     // only actual cells have an index in the range [0, ncell[. The two ghost
     // cells are excluded by the bit of conditional magic below.
     cells[i]._index = (i != 0 && i != ncell + 2) ? (i - 1) : ncell + 2;
@@ -422,7 +423,7 @@ int main(int argc, char **argv) {
     P_Store[i]._futureCell = 0;
     P_Store[i]._futureTaurem = 0.;
     P_Store[i]._futureDistance = 0.;
-    P_Store[i]._futurenbank = 0;
+    P_Store[i]._currentnbank = 1;
   }
 
   // set up the initial condition
@@ -475,7 +476,7 @@ int main(int argc, char **argv) {
 
   // set cell time steps
   // round min_integer_dt to closest smaller power of 2
-  uint_fast64_t global_integer_dt = round_power2_down(min_integer_dt);
+  uint_fast64_t global_integer_dt =((1E5/UNIT_TIME_IN_SI)/maxtime)*integer_maxtime;;
 #pragma omp parallel for
   for (uint_fast32_t i = 1; i < ncell + 1; ++i) {
     cells[i]._integer_dt = global_integer_dt;
@@ -546,19 +547,7 @@ int main(int argc, char **argv) {
     write_logfile(logfile, cells, ncell,
                   current_integer_time * time_conversion_factor);
 
-    // round min_integer_dt to closest smaller power of 2
-    global_integer_dt = round_power2_down(min_integer_dt);
-    // make sure the remaining time can be filled *exactly* with the current
-    // time step
-    while ((integer_maxtime - current_integer_time) % global_integer_dt > 0) {
-      global_integer_dt >>= 1;
-    }
-// set the new cell time steps
-#pragma omp parallel for
-    for (uint_fast32_t i = 1; i < ncell + 1; ++i) {
-      cells[i]._integer_dt = global_integer_dt;
-      cells[i]._dt = cells[i]._integer_dt * time_conversion_factor;
-    }
+
     current_integer_dt = global_integer_dt;
 
     // check if we need to output a snapshot

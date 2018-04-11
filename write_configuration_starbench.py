@@ -4,7 +4,7 @@ import get_cmake_command
 
 starbench_options = {
 "rmin_in_au": 0.,
-"rmax_in_au": 3.e5,
+"rmax_in_au": 3.e5,#initially 3.e5
 "ncell": 1000,
 "gamma": 1.001,
 "maxtime_in_yr": 1.41e5,
@@ -18,14 +18,14 @@ starbench_options = {
 "mass_point_mass_in_msol": 18.,
 "bondi_density_in_si": 1.e-16,
 "bondi_pressure_contrast": 200.,
-"initial_ionisation_radius_in_au": 6.5e4,
+"initial_ionisation_radius_in_au": 6.5e4,#intially 6.5e4
 "unit_mass_in_si": 2.479e31,
 "unit_length_in_si": 1.2e13,
-"ionisation_mode": "IONISATION_MODE_SELF_CONSISTENT",
+"ionisation_mode": "IONISATION_MODE_MONTE_CARLO_TRANSFER",
 "ionisation_transition": "IONISATION_TRANSITION_SMOOTH",
-"ionisation_transition_width_in_au": 3.e3,
+"ionisation_transition_width_in_au": 3.e3, #initially 3.e3,
 "courant_factor": 0.05,
-"riemannsolver_type": "RIEMANNSOLVER_TYPE_HLLC"
+"riemannsolver_type": "RIEMANNSOLVER_TYPE_EXACT"
 }
 
 print get_cmake_command.get_cmake_command(starbench_options)

@@ -88,7 +88,8 @@
 #error "No ionisation mode selected!"
 #else
 #if IONISATION_MODE != IONISATION_MODE_SELF_CONSISTENT &&                      \
-    IONISATION_MODE != IONISATION_MODE_CONSTANT
+    IONISATION_MODE != IONISATION_MODE_CONSTANT &&                             \
+    IONISATION_MODE != IONISATION_MODE_MONTE_CARLO_TRANSFER
 #pragma message(value_of_macro(IONISATION_MODE))
 #error "Invalid ionisation mode selected!"
 #endif
