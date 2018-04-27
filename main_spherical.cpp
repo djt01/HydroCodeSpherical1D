@@ -384,6 +384,7 @@ int main(int argc, char **argv) {
   const double maxtime = MAXTIME;
   const uint_fast64_t integer_maxtime = 0x8000000000000000; // 2^63
   const double time_conversion_factor = maxtime / integer_maxtime;
+  const double Physical_Timestep = 1E3;	/*Timestep in SI units, used for MC transfer*/
 
   // create the 1D spherical grid
   // we create 2 ghost cells to the left and to the right of the simulation box
@@ -407,7 +408,7 @@ int main(int argc, char **argv) {
     // initialize the time step to a sensible value: the requested snapshot time
     // interval
     /*ORIGINAL: cells[i]._dt = (MAXTIME / NUMBER_OF_SNAPS);*/
-    cells[i]._dt = 1E5/UNIT_TIME_IN_SI;
+    cells[i]._dt = Physical_Timestep/UNIT_TIME_IN_SI;
     // only actual cells have an index in the range [0, ncell[. The two ghost
     // cells are excluded by the bit of conditional magic below.
     cells[i]._index = (i != 0 && i != ncell + 2) ? (i - 1) : ncell + 2;
@@ -476,7 +477,8 @@ int main(int argc, char **argv) {
 
   // set cell time steps
   // round min_integer_dt to closest smaller power of 2
-  uint_fast64_t global_integer_dt =((1E5/UNIT_TIME_IN_SI)/maxtime)*integer_maxtime;;
+  uint_fast64_t global_integer_dt =((Physical_Timestep/UNIT_TIME_IN_SI)/maxtime)*integer_maxtime;
+  /*uint_fast64_t global_integer_dt =round_power2_down(min_integer_dt);*/
 #pragma omp parallel for
   for (uint_fast32_t i = 1; i < ncell + 1; ++i) {
     cells[i]._integer_dt = global_integer_dt;

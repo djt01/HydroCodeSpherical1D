@@ -3,7 +3,7 @@
 # run a starbench simulation in the folder given below, with the number of
 # threads set below
 
-folder=build_starbench
+folder=build_starbench_10
 nthread=8
 
 cmake_command=$(python write_configuration_starbench.py)

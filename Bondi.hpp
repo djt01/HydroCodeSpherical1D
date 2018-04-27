@@ -190,7 +190,7 @@ Newton G: 6.67408e-11 m^3 kg^-1 s^-2the neutral Bondi radius (in internal units
     }                                                                          \
   }                                                                            \
   /* check if we need to write to the file */                                  \
-  if (std::abs(rion - rion_old) > 1.e-2 * std::abs(rion + rion_old)) {         \
+  if (std::abs(rion - rion_old) > 1.e-4 * std::abs(rion + rion_old)) {         \
     const double curtime =                                                     \
         current_integer_time * time_conversion_factor * UNIT_TIME_IN_SI;       \
     const double ionrad = rion * UNIT_LENGTH_IN_SI;                            \
@@ -208,25 +208,24 @@ Newton G: 6.67408e-11 m^3 kg^-1 s^-2the neutral Bondi radius (in internal units
 #elif IONISATION_MODE == IONISATION_MODE_MONTE_CARLO_TRANSFER
 #define get_ionisation_radius()                                                \
   /*const double rmin=cells[0]._lowlim*UNIT_LENGTH_IN_SI;*/                    \
-  /*std::cout << "Beginning MC Ionisation" << std::endl ;                                   \
-  */const double rmax=cells[ncell+1]._uplim;                                      \
-  double Qion = 1.E49;                                                               \
+  const double rmax=cells[ncell+1]._uplim;                                     \
+  double Qion = 1.E47;                                                         \
   /*double timepassed=current_integer_time*time_conversion_factor;*/           \
   double taurem;                                                               \
   double rcurrent;                                                             \
   double lrem=SPEED_OF_LIGHT_IN_SI*cells[1]._dt*UNIT_TIME_IN_SI;               \
-  double rion;							       \
+  double rion=0.0;							               \
   int nphoton=1000;                                                            \
   int cell;                                                                    \
   int sizebank=10000000;                                                       \
-  int nbanki=P_Store[0]._currentnbank;                                           \
-  int nbank=0;                                                   \
+  int nbanki=P_Store[0]._currentnbank;                                         \
+  int nbank=0;                                                                 \
   _Pragma("omp parallel for")                                                  \
   for (uint_fast32_t k = 1; k < ncell+1; ++k){                                 \
     cells[k]._jmean=0.0; cells[k]._length=0.0;}                                \
-                                                                             \
+                                                                               \
   /* loop over packets stored in previous timestep */                          \
-  for(uint_fast32_t j=0;j<nbanki;j++){                                          \
+  for(uint_fast32_t j=0;j<nbanki;j++){                                         \
     taurem=P_Store[j]._currentTaurem;                                          \
     cell=P_Store[j]._currentCell;                                              \
     rcurrent=P_Store[j]._currentDistance;                                      \
@@ -234,9 +233,9 @@ Newton G: 6.67408e-11 m^3 kg^-1 s^-2the neutral Bondi radius (in internal units
     if(cell>ncell){continue;}                                                  \
     if(rcurrent==0.0 && taurem==0.0){continue;}                                \
     if(rcurrent!=0.0){                                                         \
-      ICT(cells,P_Store,cell,taurem,rcurrent,lrem,nbank);}   \
+      ICT(cells,P_Store,cell,taurem,rcurrent,lrem,nbank);}                     \
     while(taurem > 0.0 && lrem>0.0){                                           \
-      PROPAGATE(cells,P_Store,cell,taurem,lrem,nbank);}      \
+      PROPAGATE(cells,P_Store,cell,taurem,lrem,nbank);}                        \
       }                                                                        \
                                                                                \
   /*loop over photons emitted from source in this timestep*/                   \
@@ -246,7 +245,7 @@ Newton G: 6.67408e-11 m^3 kg^-1 s^-2the neutral Bondi radius (in internal units
     lrem=SPEED_OF_LIGHT_IN_SI*cells[1]._dt*UNIT_TIME_IN_SI;                    \
     while(taurem>0.0 && lrem >0.0){                                            \
       if (cell>ncell) {break;}                                                 \
-        PROPAGATE(cells,P_Store,cell,taurem,lrem,nbank);}    \
+        PROPAGATE(cells,P_Store,cell,taurem,lrem,nbank);}                      \
       }                                                                        \
                                                                                \
   /* calculate mean intensity in each cell based on total path length          \    
@@ -254,49 +253,49 @@ Newton G: 6.67408e-11 m^3 kg^-1 s^-2the neutral Bondi radius (in internal units
   _Pragma("omp parallel for")                                                  \
   for (uint_fast32_t k = 1; k < ncell+1; ++k){                                 \
     double vcell;                                                              \
-    if ((cells[k]._lowlim*UNIT_LENGTH_IN_SI)==0.0){                              \
-      vcell=4./3.*M_PI*std::pow(cells[k]._V*UNIT_LENGTH_IN_SI,3);}      \
+    if ((cells[k]._lowlim*UNIT_LENGTH_IN_SI)==0.0){                            \
+      vcell=4./3.*M_PI*std::pow(cells[k]._V*UNIT_LENGTH_IN_SI,3);}             \
     else{                                                                      \
-      vcell=4.0*M_PI*std::pow(cells[k]._lowlim*UNIT_LENGTH_IN_SI,2)*            \
-        cells[k]._V*UNIT_LENGTH_IN_SI;}                                       \
+      vcell=4.0/3.0*M_PI*(std::pow(cells[k]._uplim*UNIT_LENGTH_IN_SI,3)-       \
+        std::pow(cells[k]._lowlim*UNIT_LENGTH_IN_SI,3));}                      \
     cells[k]._jmean=                                                           \
-       (Qion*cells[k]._sigma*cells[k]._length)/(nphoton*vcell);}                 \
-                                                                                \
+       (Qion*cells[k]._sigma*cells[k]._length)/(nphoton*vcell);}               \
+                                                                               \
   /*update neutral fraction in each cell*/	                               \
   _Pragma("omp parallel for")                                                  \
     for (int k = 1; k < ncell+1; ++k){                                         \
       UPDATE_ION(cells,k,/*timepassed,*/cells[1]._dt*UNIT_TIME_IN_SI);         \
       cells[k]._last_jmean=cells[k]._jmean;}                                   \
-                                                                             \
+                                                                               \
   /* finish simulation if number of photons that are being stored              \
    * exceeds size of bankelse set number of photons stored this step           \
    * as nbanki and reset nbank to 0 */                                         \
-  if (nbank>sizebank){                                       \
+  if (nbank>sizebank){                                                         \
     break;}                                                                    \
                                                                                \
   /* shift packets stored this step to first three columns of bank to          \
    * be read from next step */                                                 \
   _Pragma("omp parallel for")                                                  \
-  for(uint_fast32_t j=0;j<nbank;j++){                        \
+  for(uint_fast32_t j=0;j<nbank;j++){                                          \
     P_Store[j]._currentTaurem=P_Store[j]._futureTaurem;                        \
     P_Store[j]._currentCell=P_Store[j]._futureCell;                            \
     P_Store[j]._currentDistance=P_Store[j]._futureDistance;                    \
     P_Store[j]._futureTaurem=0.0;                                              \
     P_Store[j]._futureDistance=0.0;                                            \
     P_Store[j]._futureCell=0;}			                               \
-  P_Store[0]._currentnbank=nbank;                                               \
+  P_Store[0]._currentnbank=nbank;                                              \
                                                                                \
   /* calculate rion */                                                         \
-  for (uint_fast32_t k=1;k<ncell+1;k++){                                       \
-    /*std::cout << "Calculating rion, cell" << k << std::endl;                      \
-    */if (cells[k]._nfac_MC==1.0){                                                  \
+  for (uint_fast32_t k=1;k<ncell+2;k++){                                       \
+    /*std::cout << "Calculating rion, cell" << k << std::endl;                 \
+    */if (cells[k]._nfac_MC>=0.5){                                        \
       rion=cells[k]._lowlim;                                                   \
       break;                                                                   \
       if (k>ncell){rion=rmax;}}                                                \
     }                                                                          \
                                                                                \
   /* check if we need to write to the file */                                  \
-  if (std::abs(rion - rion_old) > 1.e-2 * std::abs(rion + rion_old)) {         \
+  if (std::abs(rion - rion_old) > 1.e-4 * std::abs(rion + rion_old)) {         \
     const double curtime =                                                     \
         current_integer_time * time_conversion_factor * UNIT_TIME_IN_SI;       \
     const double ionrad = rion * UNIT_LENGTH_IN_SI;                            \
@@ -821,7 +820,8 @@ void UPDATE_ION(Cell* cells,int& cell,/*timep,*/double delta){
       double arg=(2*cells[cell]._ft0+IoR)/root;                               
       double arg2=0.5*ConB*root*delta;
       cells[cell]._ifrac=                                                     
-              0.5*root*((arg+std::tanh(arg2))/(1.+arg*std::tanh(arg2)))-0.5*IoR;        
+              0.5*root*((arg+std::tanh(arg2))/(1.+arg*std::tanh(arg2)))-
+              0.5*IoR;        
       cells[cell]._nfac_MC=1.0-cells[cell]._ifrac;                          
       cells[cell]._ft0=cells[cell]._ifrac;}                                   
   }}

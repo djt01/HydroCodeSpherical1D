@@ -18,7 +18,7 @@ bondi_options = {
 "mass_point_mass_in_msol": 18.,
 "bondi_density_in_si": 1.e-16,
 "bondi_pressure_contrast": 32.,
-"initial_ionisation_radius_in_au": 30.,
+"initial_ionisation_radius_in_au": 100.,
 "unit_mass_in_si": 2.479e31,
 "unit_length_in_si": 1.2e13,
 "ionisation_mode": "IONISATION_MODE_CONSTANT",

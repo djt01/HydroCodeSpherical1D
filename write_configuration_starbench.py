@@ -8,7 +8,7 @@ starbench_options = {
 "ncell": 1000,
 "gamma": 1.001,
 "maxtime_in_yr": 1.41e5,
-"number_of_snaps": 100,
+"number_of_snaps": 1000,
 "ic": "IC_STARBENCH",
 "eos": "EOS_BONDI",
 "boundaries": "BOUNDARIES_REFLECTIVE",
